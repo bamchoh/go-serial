@@ -50,6 +50,12 @@ var (
 	procResetEvent          = modkernel32.NewProc("ResetEvent")
 	procGetOverlappedResult = modkernel32.NewProc("GetOverlappedResult")
 	procPurgeComm           = modkernel32.NewProc("PurgeComm")
+	procSetCommBreak        = modkernel32.NewProc("SetCommBreak")
+	procClearCommBreak      = modkernel32.NewProc("ClearCommBreak")
+	procWaitCommEvent       = modkernel32.NewProc("WaitCommEvent")
+	procGetCommMask         = modkernel32.NewProc("GetCommMask")
+	procSetCommMask         = modkernel32.NewProc("SetCommMask")
+	procClearCommError      = modkernel32.NewProc("ClearCommError")
 )
 
 func regEnumValue(key syscall.Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, value *uint16, valueLen *uint32) (regerrno error) {
@@ -165,6 +171,78 @@ func getOverlappedResult(handle syscall.Handle, overlapEvent *syscall.Overlapped
 
 func purgeComm(handle syscall.Handle, flags uint32) (err error) {
 	r1, _, e1 := syscall.Syscall(procPurgeComm.Addr(), 2, uintptr(handle), uintptr(flags), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func setCommBreak(handle syscall.Handle) (err error) {
+	r1, _, e1 := syscall.Syscall(procSetCommBreak.Addr(), 1, uintptr(handle), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func clearCommBreak(handle syscall.Handle) (err error) {
+	r1, _, e1 := syscall.Syscall(procClearCommBreak.Addr(), 1, uintptr(handle), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func waitCommEvent(handle syscall.Handle, mask *uint32, overlapEvent *syscall.Overlapped) (err error) {
+	r1, _, e1 := syscall.Syscall(procWaitCommEvent.Addr(), 3, uintptr(handle), uintptr(unsafe.Pointer(mask)), uintptr(unsafe.Pointer(overlapEvent)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func getCommMask(handle syscall.Handle, mask *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procGetCommMask.Addr(), 2, uintptr(handle), uintptr(unsafe.Pointer(mask)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func setCommMask(handle syscall.Handle, mask uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procSetCommMask.Addr(), 2, uintptr(handle), uintptr(mask), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func clearCommError(handle syscall.Handle, commErr *uint32, commStat *comStat) (err error) {
+	r1, _, e1 := syscall.Syscall(procClearCommError.Addr(), 3, uintptr(handle), uintptr(unsafe.Pointer(commErr)), uintptr(unsafe.Pointer(commStat)))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = errnoErr(e1)

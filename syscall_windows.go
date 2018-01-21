@@ -4,7 +4,7 @@
 // license that can be found in the LICENSE file.
 //
 
-package serial // import "go.bug.st/serial.v1"
+package serial
 
 //sys regEnumValue(key syscall.Handle, index uint32, name *uint16, nameLen *uint32, reserved *uint32, class *uint16, value *uint16, valueLen *uint32) (regerrno error) = advapi32.RegEnumValueW
 
@@ -26,3 +26,14 @@ package serial // import "go.bug.st/serial.v1"
 
 //sys purgeComm(handle syscall.Handle, flags uint32) (err error) = PurgeComm
 
+//sys setCommBreak(handle syscall.Handle) (err error) = SetCommBreak
+
+//sys clearCommBreak(handle syscall.Handle) (err error) = ClearCommBreak
+
+//sys waitCommEvent(handle syscall.Handle, mask *uint32, overlapEvent *syscall.Overlapped) (err error) = WaitCommEvent
+
+//sys getCommMask(handle syscall.Handle, mask *uint32) (err error) = GetCommMask
+
+//sys setCommMask(handle syscall.Handle, mask uint32) (err error) = SetCommMask
+
+//sys clearCommError(handle syscall.Handle, commErr *uint32, commStat *comStat) (err error) = ClearCommError

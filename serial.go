@@ -4,7 +4,7 @@
 // license that can be found in the LICENSE file.
 //
 
-package serial // import "go.bug.st/serial.v1"
+package serial
 
 //go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go
 
@@ -42,6 +42,21 @@ type Port interface {
 
 	// Close the serial port
 	Close() error
+
+	// SetBreak sets the break signal
+	SetBreak() error
+
+	// ClearBreak clears the break signal
+	ClearBreak() error
+
+	// GetBreakSignalState returns curent the break signal state
+	GetBreakSignalState() bool
+
+	// GetCommMask returns a CommMaskBits
+	GetCommMask() (uint32, error)
+
+	// SetCommMask sets a CommMaskBits
+	SetCommMask(uint32) error
 }
 
 // ModemStatusBits contains all the modem status bits for a serial port (CTS, DSR, etc...).

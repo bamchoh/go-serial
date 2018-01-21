@@ -4,7 +4,7 @@
 // license that can be found in the LICENSE file.
 //
 
-package serial // import "go.bug.st/serial.v1"
+package serial
 
 /*
 
@@ -20,7 +20,8 @@ package serial // import "go.bug.st/serial.v1"
 import "syscall"
 
 type windowsPort struct {
-	handle syscall.Handle
+	handle   syscall.Handle
+	breakSig bool
 }
 
 func nativeGetPortsList() ([]string, error) {
@@ -54,8 +55,31 @@ func nativeGetPortsList() ([]string, error) {
 	return list, nil
 }
 
+func (port *windowsPort) GetBreakSignalState() bool {
+	return port.breakSig
+}
+
 func (port *windowsPort) Close() error {
 	return syscall.CloseHandle(port.handle)
+}
+
+func (port *windowsPort) SetBreak() error {
+	return setCommBreak(port.handle)
+}
+
+func (port *windowsPort) ClearBreak() error {
+	return clearCommBreak(port.handle)
+}
+
+func (port *windowsPort) GetCommMask() (uint32, error) {
+	var mask uint32
+	var err error
+	err = getCommMask(port.handle, &mask)
+	return mask, err
+}
+
+func (port *windowsPort) SetCommMask(mask uint32) error {
+	return setCommMask(port.handle, mask)
 }
 
 func (port *windowsPort) Read(p []byte) (int, error) {
@@ -66,8 +90,39 @@ func (port *windowsPort) Read(p []byte) (int, error) {
 		return 0, err
 	}
 	defer syscall.CloseHandle(ev.HEvent)
+
 	for {
-		err := syscall.ReadFile(port.handle, p, &readed, ev)
+		var mask uint32
+		err := waitCommEvent(port.handle, &mask, ev)
+
+		switch err {
+		case nil:
+			// operation completed successfully
+		case syscall.ERROR_IO_PENDING:
+			// wait for overlapped I/O to complete
+			if err := getOverlappedResult(port.handle, ev, &readed, true); err != nil {
+				return int(readed), err
+			}
+		default:
+			// error happened
+			return int(readed), err
+		}
+
+		if (mask & 0x0040) == 0x0040 {
+			port.breakSig = true
+		} else {
+			port.breakSig = false
+		}
+
+		if err := resetEvent(ev.HEvent); err != nil {
+			return 0, err
+		}
+
+		if (mask & 0x0001) != 0x0001 {
+			continue
+		}
+
+		err = syscall.ReadFile(port.handle, p, &readed, ev)
 		switch err {
 		case nil:
 			// operation completed successfully
@@ -150,6 +205,12 @@ const (
 	dcbRTSControlToggle             = 0x00003000
 	dcbAbortOnError                 = 0x00004000
 )
+
+type comStat struct {
+	Flags    uint32
+	CbInQue  uint32
+	CbOutQue uint32
+}
 
 type dcb struct {
 	DCBlength uint32
