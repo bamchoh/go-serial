@@ -17,11 +17,33 @@ package serial
 
 */
 
-import "syscall"
+import (
+	"syscall"
+)
+
+const (
+	EV_BREAK   = 0x0040
+	EV_CTS     = 0x0008
+	EV_DSR     = 0x0010
+	EV_ERR     = 0x0080
+	EV_RING    = 0x0100
+	EV_RLSD    = 0x0020
+	EV_RXCHAR  = 0x0001
+	EV_RXFLAG  = 0x0002
+	EV_TXEMPTY = 0x0004
+)
+
+const (
+	CE_BREAK    = 0x0010
+	CE_FRAME    = 0x0008
+	CE_OVERRUN  = 0x0002
+	CE_RXPARITY = 0x0004
+)
 
 type windowsPort struct {
-	handle   syscall.Handle
-	breakSig bool
+	handle    syscall.Handle
+	breakSig  bool
+	commError CommError
 }
 
 func nativeGetPortsList() ([]string, error) {
@@ -71,6 +93,12 @@ func (port *windowsPort) ClearBreak() error {
 	return clearCommBreak(port.handle)
 }
 
+func (port *windowsPort) ClearCommError() CommError {
+	ce := port.commError
+	port.commError = CommError{}
+	return ce
+}
+
 func (port *windowsPort) GetCommMask() (uint32, error) {
 	var mask uint32
 	var err error
@@ -83,7 +111,7 @@ func (port *windowsPort) SetCommMask(mask uint32) error {
 }
 
 func (port *windowsPort) Read(p []byte) (int, error) {
-	var readed uint32
+	var readed, errMask uint32
 	params := &dcb{}
 	ev, err := createOverlappedEvent()
 	if err != nil {
@@ -108,10 +136,27 @@ func (port *windowsPort) Read(p []byte) (int, error) {
 			return int(readed), err
 		}
 
-		if (mask & 0x0040) == 0x0040 {
-			port.breakSig = true
-		} else {
-			port.breakSig = false
+		if (mask & (EV_BREAK | EV_ERR)) > 0 {
+			err := clearCommError(port.handle, &errMask, nil)
+			if err != nil {
+				return 0, err
+			}
+
+			if (errMask & CE_BREAK) != 0 {
+				port.commError.BreakDetected = true
+			}
+
+			if (errMask & CE_FRAME) != 0 {
+				port.commError.FramingError = true
+			}
+
+			if (errMask & CE_OVERRUN) != 0 {
+				port.commError.OverrunError = true
+			}
+
+			if (errMask & CE_RXPARITY) != 0 {
+				port.commError.ParityError = true
+			}
 		}
 
 		if err := resetEvent(ev.HEvent); err != nil {

@@ -57,6 +57,17 @@ type Port interface {
 
 	// SetCommMask sets a CommMaskBits
 	SetCommMask(uint32) error
+
+	// ClearCommError
+	ClearCommError() CommError
+}
+
+// CommError contains all the communication error status bits
+type CommError struct {
+	ParityError   bool
+	FramingError  bool
+	OverrunError  bool
+	BreakDetected bool
 }
 
 // ModemStatusBits contains all the modem status bits for a serial port (CTS, DSR, etc...).
